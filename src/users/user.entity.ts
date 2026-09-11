@@ -7,13 +7,9 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { CURRENT_TIMESTAMP } from '../utils/constants.js';
-import { Review } from '../reviews/review.entity.js';
-import { Product } from '../products/product.entity.js';
-
-enum UserType {
-  ADMIN = "admin",
-  NORMAL_USER = "normal_user"
-}
+import type { Review } from '../reviews/review.entity.js';
+import type { Product } from '../products/product.entity.js';
+import { UserType } from '../utils/enums.js';
 
 @Entity({ name: 'users' })
 export class User {
@@ -30,10 +26,10 @@ export class User {
   password: string;
 
   @Column({ type: 'enum', enum: UserType, default: UserType.NORMAL_USER })
-  userType: UserType
+  userType: UserType;
 
-  @Column({ default : false})
-  isAccountVerifed : boolean
+  @Column({ default: false })
+  isAccountVerifed: boolean;
 
   @CreateDateColumn({ type: 'timestamp', default: () => CURRENT_TIMESTAMP })
   createdAt: Date;
@@ -45,9 +41,9 @@ export class User {
   })
   updatedAt: Date;
 
-  @OneToMany(() => Review, (review) => review.user)
+  @OneToMany('Review', (review: Review) => review.user)
   reviews: Review[];
- 
-  @OneToMany(() => Product, (product) => product.user)
-  products:Product[]
+
+  @OneToMany('Product', (product: Product) => product.user)
+  products: Product[];
 }

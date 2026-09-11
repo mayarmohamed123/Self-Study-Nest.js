@@ -8,8 +8,8 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { CURRENT_TIMESTAMP } from '../utils/constants.js';
-import { Review } from '../reviews/review.entity.js';
-import { User } from '../users/user.entity.js';
+import type { Review } from '../reviews/review.entity.js';
+import type { User } from '../users/user.entity.js';
 
 @Entity({ name: 'products' })
 export class Product {
@@ -37,10 +37,10 @@ export class Product {
   })
   updatedAt: Date;
 
-  @OneToMany(() => Review, (review) => review.product)
+  @OneToMany('Review', (review: Review) => review.product)
   reviews: Review[];
 
-  @ManyToOne(() => User, (user) => user.products)
-  user: User
+  @ManyToOne('User', (user: User) => user.products)
+  user: User;
 }
 
