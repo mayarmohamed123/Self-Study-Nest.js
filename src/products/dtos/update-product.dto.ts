@@ -4,7 +4,12 @@ export class UpdateProductDto {
   @IsString()
   @IsNotEmpty()
   @IsOptional()
-  name?: string;
+  title?: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @IsOptional()
+  description: string;
 
   @IsNumber()
   @IsNotEmpty()

@@ -1,34 +1,34 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateProductDto } from './dtos/create-product.dto.js';
 import { UpdateProductDto } from './dtos/update-product.dto.js';
+import { Product } from './product.entity.js';
+import { Repository } from 'typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
 
 export type ProductType = {
   id: number;
-  name: string;
+  title: string;
   price: number;
 };
 
 @Injectable()
 export class ProductsService {
-  private products: ProductType[] = [];
+  constructor(
+    @InjectRepository(Product)
+    private readonly productRepository: Repository<Product>,
+  ) {}
 
-  public createProduct(createProductDto: CreateProductDto): ProductType {
-    const newProduct: ProductType = {
-      id: this.products.length > 0 ? Math.max(...this.products.map((p) => p.id)) + 1 : 1,
-      name: createProductDto.name,
-      price: createProductDto.price,
-    };
-    this.products.push(newProduct);
-
-    return newProduct;
+  public createProduct(dto: CreateProductDto) {
+    const newProduct = this.productRepository.create(dto);
+    return this.productRepository.save(newProduct);
   }
 
-  public getAll(): ProductType[] {
-    return this.products;
+  public getAll() {
+    return this.productRepository.find();
   }
 
-  public getOneBy(id: number): ProductType {
-    const product = this.products.find((product) => product.id === id);
+  public async getOneBy(id: number) {
+    const product = await this.productRepository.findOne({ where: { id } });
     if (!product) {
       throw new NotFoundException(`Product with id ${id} not found`);
     }
@@ -36,26 +36,19 @@ export class ProductsService {
     return product;
   }
 
-  public updateProduct(id: number, updateProductDto: UpdateProductDto): ProductType {
-    const product = this.getOneBy(id);
+  public async updateProduct(id: number, updateProductDto: UpdateProductDto) {
+    const product = await this.getOneBy(id);
 
-    if (updateProductDto.name !== undefined) {
-      product.name = updateProductDto.name;
-    }
-    if (updateProductDto.price !== undefined) {
-      product.price = updateProductDto.price;
-    }
+    product.title = updateProductDto.title ?? product.title;
+    product.description = updateProductDto.description ?? product.description;
+    product.price = updateProductDto.price ?? product.price;
 
-    return product;
+    return this.productRepository.save(product);
   }
 
-  public deleteProduct(id: number): { message: string } {
-    const index = this.products.findIndex((product) => product.id === id);
-    if (index === -1) {
-      throw new NotFoundException(`Product with id ${id} not found`);
-    }
-
-    this.products.splice(index, 1);
+  public async deleteProduct(id: number): Promise<{ message: string }> {
+    const product = await this.getOneBy(id);
+    await this.productRepository.remove(product);
     return { message: `Product with id ${id} deleted successfully` };
   }
 }
