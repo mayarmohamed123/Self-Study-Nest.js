@@ -3,8 +3,14 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { CreateUserDto } from './dtos/create-user.dto.js';
-import { UpdateUserDto } from './dtos/update-user.dto.js';
+import { Repository } from 'typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
+import { User } from './user.entity.js';
+import { RegisterDto } from './dtos/register.dto.js';
+import bcrypt from 'bcryptjs';
+import { LoginDto } from './dtos/login.dto.js';
+import { JwtService } from '@nestjs/jwt';
+import { jwtPayload } from '../utils/types.js';
 
 export type UserType = {
   id: number;
@@ -15,72 +21,59 @@ export type UserType = {
 
 @Injectable()
 export class UsersService {
-  private users: UserType[] = [];
+  constructor(
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+    private readonly jwtService: JwtService,
+  ) {}
 
-  public createUser(createUserDto: CreateUserDto): UserType {
-    const existingUser = this.users.find(
-      (user) => user.email.toLowerCase() === createUserDto.email.toLowerCase(),
-    );
-    if (existingUser) {
-      throw new BadRequestException('User with this email already exists');
-    }
+  public async register(registerDto: RegisterDto) {
+    const { email, password, username } = registerDto;
 
-    const newUser: UserType = {
-      id: this.users.length > 0 ? Math.max(...this.users.map((u) => u.id)) + 1 : 1,
-      name: createUserDto.name,
-      email: createUserDto.email,
-      password: createUserDto.password,
+    const user = await this.userRepository.findOne({ where: { email } });
+    if (user) throw new BadRequestException('User Already Exists!');
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    const newUser = this.userRepository.create({
+      name: username,
+      email,
+      password: hashedPassword,
+    });
+
+    await this.userRepository.save(newUser);
+
+    const accessToken = await this.generateJwtToken({
+      id: newUser.id,
+      userType: newUser.userType,
+    });
+
+    return {
+      message: 'User registered successfully',
+      accessToken,
+      user: newUser,
     };
-    this.users.push(newUser);
-
-    return newUser;
   }
 
-  public getAll(): UserType[] {
-    return this.users;
+  public async login(loginDto: LoginDto) {
+    const { email, password } = loginDto;
+
+    const user = await this.userRepository.findOne({ where: { email } });
+    if (!user) throw new NotFoundException('User not found!');
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) throw new BadRequestException('Invalid password!');
+
+    const accessToken = await this.generateJwtToken({
+      id: user.id,
+      userType: user.userType,
+    });
+
+    return { message: 'Login successful', accessToken, user };
   }
 
-  public getOneBy(id: number): UserType {
-    const user = this.users.find((user) => user.id === id);
-    if (!user) {
-      throw new NotFoundException(`User with id ${id} not found`);
-    }
-
-    return user;
-  }
-
-  public updateUser(id: number, updateUserDto: UpdateUserDto): UserType {
-    const user = this.getOneBy(id);
-
-    if (updateUserDto.email && updateUserDto.email !== user.email) {
-      const existingUser = this.users.find(
-        (u) =>
-          u.email.toLowerCase() === updateUserDto.email?.toLowerCase() &&
-          u.id !== id,
-      );
-      if (existingUser) {
-        throw new BadRequestException('User with this email already exists');
-      }
-      user.email = updateUserDto.email;
-    }
-
-    if (updateUserDto.name !== undefined) {
-      user.name = updateUserDto.name;
-    }
-    if (updateUserDto.password !== undefined) {
-      user.password = updateUserDto.password;
-    }
-
-    return user;
-  }
-
-  public deleteUser(id: number): { message: string } {
-    const index = this.users.findIndex((user) => user.id === id);
-    if (index === -1) {
-      throw new NotFoundException(`User with id ${id} not found`);
-    }
-
-    this.users.splice(index, 1);
-    return { message: `User with id ${id} deleted successfully` };
+  private generateJwtToken(payload: jwtPayload) : Promise<string> {
+    return this.jwtService.signAsync(payload);
   }
 }
