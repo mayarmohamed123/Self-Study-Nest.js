@@ -12,12 +12,7 @@ import { LoginDto } from './dtos/login.dto.js';
 import { JwtService } from '@nestjs/jwt';
 import { jwtPayload } from '../utils/types.js';
 
-export type UserType = {
-  id: number;
-  name: string;
-  email: string;
-  password?: string;
-};
+import { UpdateUserDto } from './dtos/update-user.dto.js';
 
 @Injectable()
 export class UsersService {
@@ -33,8 +28,7 @@ export class UsersService {
     const user = await this.userRepository.findOne({ where: { email } });
     if (user) throw new BadRequestException('User Already Exists!');
 
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+    const hashedPassword = await this.hashPassword(password);
 
     const newUser = this.userRepository.create({
       name: username,
@@ -73,7 +67,44 @@ export class UsersService {
     return { message: 'Login successful', accessToken, user };
   }
 
-  private generateJwtToken(payload: jwtPayload) : Promise<string> {
+  public async getProfile(id: number) {
+    const user = await this.userRepository.findOne({ where: { id } });
+    if (!user) throw new NotFoundException('User not found!');
+
+    return user;
+  }
+
+  public getAllUsers(): Promise<User[]> {
+    return this.userRepository.find();
+  }
+
+  public async updateUser(id: number, updateUserDto: UpdateUserDto) {
+    const user = await this.getProfile(id);
+
+    if (updateUserDto.username) {
+      user.name = updateUserDto.username;
+    }
+
+    if (updateUserDto.password) {
+      user.password = await this.hashPassword(updateUserDto.password);
+    }
+
+    return this.userRepository.save(user);
+  }
+
+  public async deleteUser(id: number): Promise<{ message: string }> {
+    const user = await this.getProfile(id);
+    await this.userRepository.remove(user);
+
+    return { message: `User with id ${id} deleted successfully` };
+  }
+
+  private async hashPassword(password: string): Promise<string> {
+    const salt = await bcrypt.genSalt(10);
+    return bcrypt.hash(password, salt);
+  }
+
+  private generateJwtToken(payload: jwtPayload): Promise<string> {
     return this.jwtService.signAsync(payload);
   }
 }
