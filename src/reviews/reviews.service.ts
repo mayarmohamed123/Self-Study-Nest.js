@@ -1,53 +1,80 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateReviewDto } from './dtos/create-review.dto.js';
 import { UpdateReviewDto } from './dtos/update-review.dto.js';
-
-export type ReviewType = {
-  id: number;
-  rating: number;
-  comment: string;
-  productId: number;
-  userId?: number;
-  createdAt: Date;
-};
+import { Review } from './review.entity.js';
+import { Repository } from 'typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
+import { ProductsService } from '../products/products.service.js';
+import { UsersService } from '../users/users.service.js';
+import { jwtPayload } from '../utils/types.js';
+import { UserType } from '../utils/enums.js';
 
 @Injectable()
 export class ReviewsService {
-  private reviews: ReviewType[] = [];
+  constructor(
+    @InjectRepository(Review)
+    private readonly reviewRepository: Repository<Review>,
+    private readonly productsService: ProductsService,
+    private readonly usersService: UsersService,
+  ) {}
 
-  public createReview(createReviewDto: CreateReviewDto): ReviewType {
-    const newReview: ReviewType = {
-      id: this.reviews.length > 0 ? Math.max(...this.reviews.map((r) => r.id)) + 1 : 1,
+  public async createReview(
+    productId: number,
+    createReviewDto: CreateReviewDto,
+    payload: jwtPayload,
+  ) {
+    const product = await this.productsService.getOneBy(productId);
+    const user = await this.usersService.getProfile(payload.id);
+
+    const newReview = this.reviewRepository.create({
       rating: createReviewDto.rating,
       comment: createReviewDto.comment,
-      productId: createReviewDto.productId,
-      userId: createReviewDto.userId,
-      createdAt: new Date(),
+      product,
+      user,
+    });
+
+    const savedReview = await this.reviewRepository.save(newReview);
+
+    return {
+      id: savedReview.id,
+      rating: savedReview.rating,
+      comment: savedReview.comment,
     };
-    this.reviews.push(newReview);
-
-    return newReview;
   }
 
-  public getAll(): ReviewType[] {
-    return this.reviews;
+  public getAll() {
+    return this.reviewRepository.find({
+      order: {
+        createdAt: 'DESC',
+      },
+      relations: {
+        user: true,
+        product: true,
+      },
+    });
   }
 
-  public getByProductId(productId: number): ReviewType[] {
-    return this.reviews.filter((review) => review.productId === productId);
+  public async getOneBy(id: number) {
+    return this.findReviewById(id);
   }
 
-  public getOneBy(id: number): ReviewType {
-    const review = this.reviews.find((review) => review.id === id);
-    if (!review) {
-      throw new NotFoundException(`Review with id ${id} not found`);
+  public async updateReview(
+    id: number,
+    updateReviewDto: UpdateReviewDto,
+    payload: jwtPayload,
+  ) {
+    const review = await this.findReviewById(id);
+
+    const isOwner =
+      review.userId === payload.id || review.user?.id === payload.id;
+
+    if (!isOwner) {
+      throw new ForbiddenException('You are not allowed to update this review');
     }
-
-    return review;
-  }
-
-  public updateReview(id: number, updateReviewDto: UpdateReviewDto): ReviewType {
-    const review = this.getOneBy(id);
 
     if (updateReviewDto.rating !== undefined) {
       review.rating = updateReviewDto.rating;
@@ -56,16 +83,44 @@ export class ReviewsService {
       review.comment = updateReviewDto.comment;
     }
 
-    return review;
+    const updated = await this.reviewRepository.save(review);
+    return {
+      id: updated.id,
+      rating: updated.rating,
+      comment: updated.comment,
+    };
   }
 
-  public deleteReview(id: number): { message: string } {
-    const index = this.reviews.findIndex((review) => review.id === id);
-    if (index === -1) {
+  public async deleteReview(
+    id: number,
+    payload: jwtPayload,
+  ): Promise<{ message: string }> {
+    const review = await this.findReviewById(id);
+
+    const isOwner =
+      review.userId === payload.id || review.user?.id === payload.id;
+    const isAdmin = payload.userType === UserType.ADMIN;
+
+    if (!isOwner && !isAdmin) {
+      throw new ForbiddenException('You are not allowed to delete this review');
+    }
+
+    await this.reviewRepository.remove(review);
+    return { message: `Review with id ${id} deleted successfully` };
+  }
+
+  private async findReviewById(id: number): Promise<Review> {
+    const review = await this.reviewRepository.findOne({
+      where: { id },
+      relations: {
+        user: true,
+        product: true,
+      },
+    });
+    if (!review) {
       throw new NotFoundException(`Review with id ${id} not found`);
     }
 
-    this.reviews.splice(index, 1);
-    return { message: `Review with id ${id} deleted successfully` };
+    return review;
   }
 }

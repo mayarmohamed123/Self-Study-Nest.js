@@ -7,8 +7,8 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { CURRENT_TIMESTAMP } from '../utils/constants.js';
-import type { Product } from '../products/product.entity.js';
-import type { User } from '../users/user.entity.js';
+import { Product } from '../products/product.entity.js';
+import { User } from '../users/user.entity.js';
 
 @Entity({ name: 'reviews' })
 export class Review {
@@ -31,7 +31,7 @@ export class Review {
   })
   updatedAt: Date;
 
-  @ManyToOne('Product', (product: Product) => product.reviews, {
+  @ManyToOne(() => Product, (product) => product.reviews, {
     onDelete: 'CASCADE',
     nullable: false,
   })
@@ -40,7 +40,7 @@ export class Review {
   @Column({ nullable: false })
   productId: number;
 
-  @ManyToOne('User', (user: User) => user.reviews, {
+  @ManyToOne(() => User, (user) => user.reviews, {
     onDelete: 'CASCADE',
     nullable: true,
   })
