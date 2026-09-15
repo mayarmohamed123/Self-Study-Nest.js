@@ -9,6 +9,7 @@ import {
   Patch,
   Post,
   Put,
+  Query,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
@@ -37,8 +38,12 @@ export class ProductController {
   }
 
   @Get()
-  public getAllProducts() {
-    return this.productsService.getAll();
+  public getAllProducts(
+    @Query('title') title?: string,
+    @Query('minPrice', new ParseIntPipe({ optional: true })) minPrice?: number,
+    @Query('maxPrice', new ParseIntPipe({ optional: true })) maxPrice?: number,
+  ) {
+    return this.productsService.getAll(title, minPrice, maxPrice);
   }
 
   @Get(':id')
