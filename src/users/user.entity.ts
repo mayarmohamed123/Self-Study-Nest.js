@@ -11,6 +11,8 @@ import type { Review } from '../reviews/review.entity.js';
 import type { Product } from '../products/product.entity.js';
 import { UserType } from '../utils/enums.js';
 
+import { Exclude } from 'class-transformer';
+
 @Entity({ name: 'users' })
 export class User {
   @PrimaryGeneratedColumn()
@@ -23,6 +25,7 @@ export class User {
   email: string;
 
   @Column({ type: 'varchar', length: 255 })
+  @Exclude()
   password: string;
 
   @Column({ type: 'enum', enum: UserType, default: UserType.NORMAL_USER })

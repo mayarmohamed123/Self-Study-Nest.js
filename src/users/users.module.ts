@@ -5,6 +5,7 @@ import { UsersService } from './users.service.js';
 import { User } from './user.entity.js';
 import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
+import { AuthProvider } from './auth.provider.js';
 import type { StringValue } from 'ms';
 
 @Module({
@@ -24,7 +25,7 @@ import type { StringValue } from 'ms';
     }),
   ],
   controllers: [UsersController],
-  providers: [UsersService],
-  exports: [UsersService],
+  providers: [UsersService, AuthProvider],
+  exports: [UsersService, AuthProvider],
 })
 export class UsersModule {}

@@ -5,6 +5,9 @@ import { Product } from './product.entity.js';
 import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 
+import { UsersService } from '../users/users.service.js';
+import { jwtPayload } from '../utils/types.js';
+
 export type ProductType = {
   id: number;
   title: string;
@@ -16,19 +19,35 @@ export class ProductsService {
   constructor(
     @InjectRepository(Product)
     private readonly productRepository: Repository<Product>,
+    private readonly usersService: UsersService,
   ) {}
 
-  public createProduct(dto: CreateProductDto) {
-    const newProduct = this.productRepository.create(dto);
+  public async createProduct(dto: CreateProductDto, payload: jwtPayload) {
+    const user = await this.usersService.getProfile(payload.id);
+    const newProduct = this.productRepository.create({
+      ...dto,
+      user,
+    });
     return this.productRepository.save(newProduct);
   }
 
   public getAll() {
-    return this.productRepository.find();
+    return this.productRepository.find({
+      relations: {
+        user: true,
+        reviews: true,
+      },
+    });
   }
 
   public async getOneBy(id: number) {
-    const product = await this.productRepository.findOne({ where: { id } });
+    const product = await this.productRepository.findOne({
+      where: { id },
+      relations: {
+        user: true,
+        reviews: true,
+      },
+    });
     if (!product) {
       throw new NotFoundException(`Product with id ${id} not found`);
     }

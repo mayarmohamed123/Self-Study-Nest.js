@@ -1,5 +1,6 @@
 import {
   Body,
+  ClassSerializerInterceptor,
   Controller,
   Delete,
   Get,
@@ -11,6 +12,7 @@ import {
   Put,
   Req,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import { UsersService } from './users.service.js';
 import { RegisterDto } from './dtos/register.dto.js';
@@ -24,6 +26,7 @@ import { Roles } from './decorators/user-roles.decorator.js';
 import { AuthRolesGuard } from './guards/auth-roles.guard.js';
 
 @Controller('api/users')
+@UseInterceptors(ClassSerializerInterceptor)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
