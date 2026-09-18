@@ -9,6 +9,7 @@ import {
   Patch,
   Post,
   Put,
+  Query,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
@@ -40,8 +41,11 @@ export class ReviewsController {
   @Get()
   @Roles(UserType.ADMIN)
   @UseGuards(AuthRolesGuard)
-  public getAllReviews() {
-    return this.reviewsService.getAll();
+  public getAllReviews(
+    @Query('pageNumber', ParseIntPipe) pageNumber: number,
+    @Query('reviewsPerPage', ParseIntPipe) reviewsPerPage: number,
+  ) {
+    return this.reviewsService.getAll(pageNumber, reviewsPerPage);
   }
 
   @Get(':id')
