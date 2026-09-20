@@ -11,6 +11,7 @@ import { LoginDto } from './dtos/login.dto.js';
 import bcrypt from 'bcryptjs';
 import { JwtService } from '@nestjs/jwt';
 import { jwtPayload } from '../utils/types.js';
+import { MailService } from '../mail/mail.service.js';
 
 @Injectable()
 export class AuthProvider {
@@ -18,6 +19,7 @@ export class AuthProvider {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly jwtService: JwtService,
+    private readonly mailService: MailService,
   ) {}
 
   public async register(registerDto: RegisterDto) {
@@ -35,6 +37,8 @@ export class AuthProvider {
     });
 
     await this.userRepository.save(newUser);
+
+    await this.mailService.sendWelcomeEmail(newUser.email, newUser.name);
 
     const accessToken = await this.generateJWT({
       id: newUser.id,
@@ -61,6 +65,8 @@ export class AuthProvider {
       id: user.id,
       userType: user.userType,
     });
+
+    await this.mailService.sendLoginNotification(user.email, user.name);
 
     return { message: 'Login successful', accessToken, user };
   }

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Login Notification</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f6f8;
+      margin: 0;
+      padding: 0;
+      color: #333333;
+    }
+    .email-container {
+      max-width: 600px;
+      margin: 20px auto;
+      background-color: #ffffff;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    .email-header {
+      background-color: #0284c7;
+      color: #ffffff;
+      padding: 24px;
+      text-align: center;
+    }
+    .email-header h1 {
+      margin: 0;
+      font-size: 24px;
+    }
+    .email-body {
+      padding: 32px 24px;
+      line-height: 1.6;
+    }
+    .alert-box {
+      background-color: #f0fdf4;
+      border-left: 4px solid #22c55e;
+      padding: 12px 16px;
+      margin: 16px 0;
+      border-radius: 4px;
+    }
+    .email-footer {
+      background-color: #f9fafb;
+      padding: 16px 24px;
+      text-align: center;
+      font-size: 12px;
+      color: #6b7280;
+    }
+  </style>
+</head>
+<body>
+  <div class="email-container">
+    <div class="email-header">
+      <h1>New Login Notification</h1>
+    </div>
+    <div class="email-body">
+      <p>Hello <strong><%= name %></strong>,</p>
+      <p>We noticed a successful login to your account (<strong><%= email %></strong>).</p>
+      <div class="alert-box">
+        <p style="margin: 0;"><strong>Time:</strong> <%= loginTime %></p>
+      </div>
+      <p>If this was you, no action is needed. If you did not log in, please reset your password immediately to secure your account.</p>
+    </div>
+    <div class="email-footer">
+      <p>&copy; <%= new Date().getFullYear() %> NestJS App. All rights reserved.</p>
+    </div>
+  </div>
+</body>
+</html>
