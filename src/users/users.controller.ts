@@ -11,9 +11,14 @@ import {
   Post,
   Put,
   Req,
+  Res,
   UseGuards,
   UseInterceptors,
+  UploadedFile,
+  BadRequestException,
+  NotFoundException,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { UsersService } from './users.service.js';
 import { RegisterDto } from './dtos/register.dto.js';
 import { LoginDto } from './dtos/login.dto.js';
@@ -24,6 +29,8 @@ import { jwtPayload } from '../utils/types.js';
 import { UserType } from '../utils/enums.js';
 import { Roles } from './decorators/user-roles.decorator.js';
 import { AuthRolesGuard } from './guards/auth-roles.guard.js';
+import { join } from 'path';
+import type { Response } from 'express';
 
 @Controller('api/users')
 @UseInterceptors(ClassSerializerInterceptor)
@@ -69,5 +76,67 @@ export class UsersController {
   @UseGuards(AuthRolesGuard)
   public deleteUser(@Param('id', ParseIntPipe) id: number) {
     return this.usersService.deleteUser(id);
+  }
+
+  // ─── Profile Image Endpoints ──────────────────────────────────────────────
+
+  /**
+   * POST api/users/profile-image
+   * Authenticated: requires Bearer JWT token.
+   * Accepts a single file under the field name "file".
+   * Stores the file in ./images and saves the filename to the DB.
+   * Replaces any existing profile image (old file is deleted from disk).
+   */
+  @Post('profile-image')
+  @UseGuards(AuthGuard)
+  @UseInterceptors(FileInterceptor('file'))
+  public async uploadProfileImage(
+    @CurrentUser() payload: jwtPayload,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    if (!file) {
+      throw new BadRequestException('No image file provided');
+    }
+
+    const updatedUser = await this.usersService.setProfileImg(
+      payload.id,
+      file.filename,
+    );
+
+    return {
+      message: 'Profile image uploaded successfully',
+      profileImg: updatedUser.profileImg,
+    };
+  }
+
+  /**
+   * DELETE api/users/profile-image
+   * Authenticated: requires Bearer JWT token.
+   * Deletes the current user's profile image from disk and sets profileImg to null.
+   */
+  @Delete('profile-image')
+  @UseGuards(AuthGuard)
+  public async deleteProfileImage(@CurrentUser() payload: jwtPayload) {
+    return this.usersService.deleteProfileImg(payload.id);
+  }
+
+  /**
+   * GET api/users/profile-image/:id
+   * Public endpoint.
+   * Returns the actual image file for the given user ID.
+   */
+  @Get('profile-image/:id')
+  public async getProfileImage(
+    @Param('id', ParseIntPipe) id: number,
+    @Res() res: Response,
+  ) {
+    const user = await this.usersService.getProfile(id);
+
+    if (!user.profileImg) {
+      throw new NotFoundException('User does not have a profile image');
+    }
+
+    const imagePath = join(process.cwd(), 'images', user.profileImg);
+    res.sendFile(imagePath);
   }
 }

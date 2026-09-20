@@ -7,8 +7,8 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import type { Relation } from 'typeorm';
 import { CURRENT_TIMESTAMP } from '../utils/constants.js';
-import { Review } from '../reviews/review.entity.js';
 import { User } from '../users/user.entity.js';
 
 @Entity({ name: 'products' })
@@ -37,10 +37,15 @@ export class Product {
   })
   updatedAt: Date;
 
-  @OneToMany(() => Review, (review) => review.product)
-  reviews: Review[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  @OneToMany('Review', 'product', {
+    cascade: true,
+  })
+  reviews: Relation<any[]>;
 
-  @ManyToOne(() => User, (user) => user.products)
-  user: User;
+  @ManyToOne(() => User, (user) => user.products, {
+    onDelete: 'CASCADE',
+  })
+  user: Relation<User>;
 }
 

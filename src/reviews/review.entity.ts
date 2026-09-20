@@ -6,6 +6,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import type { Relation } from 'typeorm';
 import { CURRENT_TIMESTAMP } from '../utils/constants.js';
 import { Product } from '../products/product.entity.js';
 import { User } from '../users/user.entity.js';
@@ -35,7 +36,7 @@ export class Review {
     onDelete: 'CASCADE',
     nullable: false,
   })
-  product: Product;
+  product: Relation<Product>;
 
   @Column({ nullable: false })
   productId: number;
@@ -44,7 +45,7 @@ export class Review {
     onDelete: 'CASCADE',
     nullable: true,
   })
-  user?: User;
+  user?: Relation<User>;
 
   @Column({ nullable: true })
   userId?: number;

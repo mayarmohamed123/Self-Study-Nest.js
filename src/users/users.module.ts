@@ -6,6 +6,8 @@ import { User } from './user.entity.js';
 import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { AuthProvider } from './auth.provider.js';
+import { MulterModule } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
 import type { StringValue } from 'ms';
 
 @Module({
@@ -22,6 +24,16 @@ import type { StringValue } from 'ms';
           },
         };
       },
+    }),
+    MulterModule.register({
+      storage: diskStorage({
+        destination: './images',
+        filename: (_req, file, cb) => {
+          const prefix = `${Date.now()}-${Math.round(Math.random() * 1_000_000)}`;
+          const filename = `${prefix}-${file.originalname}`;
+          cb(null, filename);
+        },
+      }),
     }),
   ],
   controllers: [UsersController],
