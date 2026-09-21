@@ -12,6 +12,8 @@ import bcrypt from 'bcryptjs';
 import { JwtService } from '@nestjs/jwt';
 import { jwtPayload } from '../utils/types.js';
 import { MailService } from '../mail/mail.service.js';
+import { ConfigService } from '@nestjs/config';
+import { randomBytes } from 'crypto';
 
 @Injectable()
 export class AuthProvider {
@@ -20,6 +22,7 @@ export class AuthProvider {
     private readonly userRepository: Repository<User>,
     private readonly jwtService: JwtService,
     private readonly mailService: MailService,
+    private readonly configService: ConfigService,
   ) {}
 
   public async register(registerDto: RegisterDto) {
@@ -29,26 +32,30 @@ export class AuthProvider {
     if (user) throw new BadRequestException('User Already Exists!');
 
     const hashedPassword = await this.hashPassword(password);
+    const verificationToken = randomBytes(32).toString('hex');
 
     const newUser = this.userRepository.create({
       name: username,
       email,
       password: hashedPassword,
+      verificationToken,
     });
 
     await this.userRepository.save(newUser);
 
-    await this.mailService.sendWelcomeEmail(newUser.email, newUser.name);
+    const verificationLink = this.generateVerificationLink(
+      newUser.id,
+      verificationToken,
+    );
 
-    const accessToken = await this.generateJWT({
-      id: newUser.id,
-      userType: newUser.userType,
-    });
+    await this.mailService.sendVerifyEmailTemplate(
+      newUser.email,
+      verificationLink,
+    );
 
     return {
-      message: 'User registered successfully',
-      accessToken,
-      user: newUser,
+      message:
+        'Please verify your email. A verification link has been sent to your email address.',
     };
   }
 
@@ -61,6 +68,26 @@ export class AuthProvider {
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) throw new BadRequestException('Invalid password!');
 
+    if (!user.isEmailVerified) {
+      let token = user.verificationToken;
+      if (!token) {
+        token = randomBytes(32).toString('hex');
+        user.verificationToken = token;
+        await this.userRepository.save(user);
+      }
+
+      const verificationLink = this.generateVerificationLink(user.id, token);
+      await this.mailService.sendVerifyEmailTemplate(
+        user.email,
+        verificationLink,
+      );
+
+      return {
+        message:
+          'Please verify your email address. A verification link has been sent to your email.',
+      };
+    }
+
     const accessToken = await this.generateJWT({
       id: user.id,
       userType: user.userType,
@@ -69,6 +96,12 @@ export class AuthProvider {
     await this.mailService.sendLoginNotification(user.email, user.name);
 
     return { message: 'Login successful', accessToken, user };
+  }
+
+  private generateVerificationLink(userId: number, token: string): string {
+    const domain =
+      this.configService.get<string>('DOMAIN') ?? 'http://localhost:5000';
+    return `${domain}/api/user/verify-email/${userId}/${token}`;
   }
 
   public async hashPassword(password: string): Promise<string> {

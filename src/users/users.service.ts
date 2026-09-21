@@ -29,6 +29,27 @@ export class UsersService {
     return this.authProvider.login(loginDto);
   }
 
+  public async verifyEmail(
+    userId: number,
+    verificationToken: string,
+  ): Promise<{ message: string }> {
+    const user = await this.getProfile(userId);
+
+    if (!user.verificationToken) {
+      throw new BadRequestException('Invalid or expired verification token!');
+    }
+
+    if (user.verificationToken !== verificationToken) {
+      throw new BadRequestException('Invalid verification token!');
+    }
+
+    user.isEmailVerified = true;
+    user.verificationToken = null;
+    await this.userRepository.save(user);
+
+    return { message: 'Your email has been verified successfully.' };
+  }
+
   public async getProfile(id: number) {
     const user = await this.userRepository.findOne({ where: { id } });
     if (!user) throw new NotFoundException('User not found!');

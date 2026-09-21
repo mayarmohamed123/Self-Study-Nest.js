@@ -32,8 +32,12 @@ export class User {
   @Column({ type: 'enum', enum: UserType, default: UserType.NORMAL_USER })
   userType: UserType;
 
+
   @Column({ default: false })
-  isAccountVerifed: boolean;
+  isEmailVerified: boolean;
+
+  @Column({ type: 'varchar', nullable: true, default: null })
+  verificationToken: string | null;
 
   @Column({ type: 'varchar', nullable: true, default: null })
   profileImg: string | null;

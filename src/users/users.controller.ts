@@ -32,7 +32,7 @@ import { AuthRolesGuard } from './guards/auth-roles.guard.js';
 import { join } from 'path';
 import type { Response } from 'express';
 
-@Controller('api/users')
+@Controller(['api/users', 'api/user'])
 @UseInterceptors(ClassSerializerInterceptor)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
@@ -46,6 +46,14 @@ export class UsersController {
   @HttpCode(HttpStatus.OK)
   public loginUser(@Body() body: LoginDto) {
     return this.usersService.login(body);
+  }
+
+  @Get('verify-email/:id/:verificationToken')
+  public verifyEmail(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('verificationToken') verificationToken: string,
+  ) {
+    return this.usersService.verifyEmail(id, verificationToken);
   }
 
   @Get('auth/profile')

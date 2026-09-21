@@ -39,19 +39,6 @@ export class MailService {
     return this.sendMail({ to, subject, html, text });
   }
 
-  public async sendWelcomeEmail(to: string, name?: string) {
-    const displayName = name ?? 'User';
-    return this.sendMail({
-      to,
-      subject: 'Welcome to our platform!',
-      template: 'welcome',
-      context: {
-        name: displayName,
-        email: to,
-      },
-    });
-  }
-
   public async sendLoginNotification(to: string, name?: string) {
     const displayName = name ?? 'User';
     return this.sendMail({
@@ -62,6 +49,17 @@ export class MailService {
         name: displayName,
         email: to,
         loginTime: new Date().toLocaleString(),
+      },
+    });
+  }
+
+  public async sendVerifyEmailTemplate(email: string, link: string) {
+    return this.sendMail({
+      to: email,
+      subject: 'Verify Your Email Address',
+      template: 'verify-email',
+      context: {
+        link,
       },
     });
   }
