@@ -8,6 +8,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { User } from './user.entity.js';
 import { RegisterDto } from './dtos/register.dto.js';
 import { LoginDto } from './dtos/login.dto.js';
+import { ForgotPasswordDto } from './dtos/forgot-password.dto.js';
+import { ResetPasswordDto } from './dtos/reset-password.dto.js';
 import { UpdateUserDto } from './dtos/update-user.dto.js';
 import { AuthProvider } from './auth.provider.js';
 import { unlink } from 'fs/promises';
@@ -48,6 +50,24 @@ export class UsersService {
     await this.userRepository.save(user);
 
     return { message: 'Your email has been verified successfully.' };
+  }
+
+  public forgotPassword(forgotPasswordDto: ForgotPasswordDto) {
+    return this.authProvider.forgotPassword(forgotPasswordDto);
+  }
+
+  public validateResetPasswordToken(
+    userId: number,
+    resetPasswordToken: string,
+  ) {
+    return this.authProvider.validateResetPasswordToken(
+      userId,
+      resetPasswordToken,
+    );
+  }
+
+  public resetPassword(resetPasswordDto: ResetPasswordDto) {
+    return this.authProvider.resetPassword(resetPasswordDto);
   }
 
   public async getProfile(id: number) {

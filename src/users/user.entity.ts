@@ -40,6 +40,9 @@ export class User {
   verificationToken: string | null;
 
   @Column({ type: 'varchar', nullable: true, default: null })
+  resetPasswordToken: string | null;
+
+  @Column({ type: 'varchar', nullable: true, default: null })
   profileImg: string | null;
 
   @CreateDateColumn({ type: 'timestamp', default: () => CURRENT_TIMESTAMP })

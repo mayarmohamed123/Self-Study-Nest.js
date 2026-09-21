@@ -63,4 +63,20 @@ export class MailService {
       },
     });
   }
+
+  public async sendResetPasswordTemplate(
+    email: string,
+    link: string,
+    name?: string,
+  ) {
+    return this.sendMail({
+      to: email,
+      subject: 'Reset Your Password',
+      template: 'reset-password',
+      context: {
+        link,
+        name,
+      },
+    });
+  }
 }

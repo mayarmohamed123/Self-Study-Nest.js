@@ -22,6 +22,8 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { UsersService } from './users.service.js';
 import { RegisterDto } from './dtos/register.dto.js';
 import { LoginDto } from './dtos/login.dto.js';
+import { ForgotPasswordDto } from './dtos/forgot-password.dto.js';
+import { ResetPasswordDto } from './dtos/reset-password.dto.js';
 import { UpdateUserDto } from './dtos/update-user.dto.js';
 import { AuthGuard } from './guards/auth.guard.js';
 import { CurrentUser } from './decorators/current-user.decorator.js';
@@ -54,6 +56,29 @@ export class UsersController {
     @Param('verificationToken') verificationToken: string,
   ) {
     return this.usersService.verifyEmail(id, verificationToken);
+  }
+
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  public forgotPassword(@Body() body: ForgotPasswordDto) {
+    return this.usersService.forgotPassword(body);
+  }
+
+  @Get('reset-password/:userId/:resetPasswordToken')
+  public validateResetPasswordToken(
+    @Param('userId', ParseIntPipe) userId: number,
+    @Param('resetPasswordToken') resetPasswordToken: string,
+  ) {
+    return this.usersService.validateResetPasswordToken(
+      userId,
+      resetPasswordToken,
+    );
+  }
+
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  public resetPassword(@Body() body: ResetPasswordDto) {
+    return this.usersService.resetPassword(body);
   }
 
   @Get('auth/profile')

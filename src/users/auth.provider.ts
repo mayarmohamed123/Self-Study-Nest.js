@@ -8,6 +8,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { User } from './user.entity.js';
 import { RegisterDto } from './dtos/register.dto.js';
 import { LoginDto } from './dtos/login.dto.js';
+import { ForgotPasswordDto } from './dtos/forgot-password.dto.js';
+import { ResetPasswordDto } from './dtos/reset-password.dto.js';
 import bcrypt from 'bcryptjs';
 import { JwtService } from '@nestjs/jwt';
 import { jwtPayload } from '../utils/types.js';
@@ -102,6 +104,78 @@ export class AuthProvider {
     const domain =
       this.configService.get<string>('DOMAIN') ?? 'http://localhost:5000';
     return `${domain}/api/user/verify-email/${userId}/${token}`;
+  }
+
+  public async forgotPassword(
+    forgotPasswordDto: ForgotPasswordDto,
+  ): Promise<{ message: string }> {
+    const { email } = forgotPasswordDto;
+    const user = await this.userRepository.findOne({ where: { email } });
+    if (!user) {
+      throw new NotFoundException('User with this email does not exist!');
+    }
+
+    const resetPasswordToken = randomBytes(32).toString('hex');
+    user.resetPasswordToken = resetPasswordToken;
+    await this.userRepository.save(user);
+
+    const resetLink = this.generateResetPasswordLink(
+      user.id,
+      resetPasswordToken,
+    );
+
+    await this.mailService.sendResetPasswordTemplate(
+      user.email,
+      resetLink,
+      user.name,
+    );
+
+    return { message: 'Reset password link has been sent to your email.' };
+  }
+
+  public async validateResetPasswordToken(
+    userId: number,
+    token: string,
+  ): Promise<{ message: string }> {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found!');
+    }
+
+    if (!user.resetPasswordToken || user.resetPasswordToken !== token) {
+      throw new BadRequestException('Invalid or expired reset password token!');
+    }
+
+    return { message: 'Reset password link is valid.' };
+  }
+
+  public async resetPassword(
+    resetPasswordDto: ResetPasswordDto,
+  ): Promise<{ message: string }> {
+    const { userId, resetPasswordToken, password } = resetPasswordDto;
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found!');
+    }
+
+    if (
+      !user.resetPasswordToken ||
+      user.resetPasswordToken !== resetPasswordToken
+    ) {
+      throw new BadRequestException('Invalid or expired reset password token!');
+    }
+
+    user.password = await this.hashPassword(password);
+    user.resetPasswordToken = null;
+    await this.userRepository.save(user);
+
+    return { message: 'Password has been reset successfully.' };
+  }
+
+  private generateResetPasswordLink(userId: number, token: string): string {
+    const frontendUrl =
+      this.configService.get<string>('FRONTEND_URL') ?? 'http://localhost:3000';
+    return `${frontendUrl}/reset-password/${userId}/${token}`;
   }
 
   public async hashPassword(password: string): Promise<string> {
