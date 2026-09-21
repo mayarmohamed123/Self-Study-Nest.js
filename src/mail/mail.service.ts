@@ -1,12 +1,20 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { MailerService } from '@nestjs-modules/mailer';
 
+/**
+ * Service providing email dispatching capabilities via Nodemailer and @nestjs-modules/mailer.
+ * Supports HTML/text emails and EJS templates with automatic CSS inlining.
+ */
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
 
   constructor(private readonly mailerService: MailerService) {}
 
+  /**
+   * Dispatches an email message using the configured SMTP transporter.
+   * Catches errors to avoid failing main business transactions when transport is unavailable.
+   */
   public async sendMail(options: {
     to: string;
     subject: string;
@@ -30,6 +38,9 @@ export class MailService {
     }
   }
 
+  /**
+   * Helper to send plain or raw HTML email.
+   */
   public async sendEmail(
     to: string,
     subject: string,
@@ -39,6 +50,9 @@ export class MailService {
     return this.sendMail({ to, subject, html, text });
   }
 
+  /**
+   * Sends a login notification email informing the user of an account sign-in.
+   */
   public async sendLoginNotification(to: string, name?: string) {
     const displayName = name ?? 'User';
     return this.sendMail({
@@ -53,6 +67,9 @@ export class MailService {
     });
   }
 
+  /**
+   * Sends an email verification template with a link to activate the account.
+   */
   public async sendVerifyEmailTemplate(email: string, link: string) {
     return this.sendMail({
       to: email,
@@ -64,6 +81,9 @@ export class MailService {
     });
   }
 
+  /**
+   * Sends a password reset template with a link allowing the user to set a new password.
+   */
   public async sendResetPasswordTemplate(
     email: string,
     link: string,

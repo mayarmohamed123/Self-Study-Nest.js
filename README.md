@@ -1,114 +1,241 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# NestJS E-Commerce & Authentication API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+A robust, enterprise-ready RESTful backend application built with [NestJS](https://nestjs.com/), [TypeORM](https://typeorm.io/), and [PostgreSQL](https://www.postgresql.org/). Features complete JWT authentication, role-based authorization, email verification, password recovery with transactional EJS templates, product and review management, and file storage.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+---
 
-## Description
+## 🚀 Key Features
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+### 1. Authentication & Security
+- **Registration**: Hashed passwords with `bcryptjs`, cryptographically secure 32-byte hex verification tokens, and automatic verification email dispatch.
+- **Email Verification**: Token-based link verification (`GET /api/user/verify-email/:id/:token`) activating user accounts.
+- **Login Safeguards**: Prevents unverified users from acquiring JWTs; automatically regenerates/resends verification emails upon unverified sign-in attempts.
+- **Forgot & Reset Password**: Secure token-based password reset flow (`POST /users/forgot-password`, `GET /users/reset-password/:userId/:token`, `POST /users/reset-password`) with automatic token invalidation.
+- **JWT & Role-Based Access Control (RBAC)**: Custom `@CurrentUser()` parameter decorator, `AuthGuard`, and `AuthRolesGuard` protecting endpoints by user role (`ADMIN`, `NORMAL_USER`).
 
-## Project setup
+### 2. Transactional Mail System
+- Powered by `@nestjs-modules/mailer` and Nodemailer.
+- **EJS Templates** with automatic CSS inlining (`@css-inline/css-inline`):
+  - `verify-email.ejs`: Account activation email with branded call-to-action button and fallback link.
+  - `reset-password.ejs`: Password reset request email with secure frontend link.
+  - `login.ejs`: Security alert notification on new account logins.
+- Non-blocking error handling ensures external mail transport hiccups do not fail primary database transactions.
 
-```bash
-$ npm install
+### 3. User & Profile Image Management
+- Profile management: Update username and password, view profile, and administrative user deletion.
+- **Profile Image Storage**: Upload, replace, delete, and public streaming of user avatars stored on disk in `./images`. Old images are automatically unlinked upon replacement or deletion.
+
+### 4. Products & Reviews Catalog
+- **Products**: Full CRUD operations. Public filtering by title (substring search) and price range (`minPrice`, `maxPrice`). Creation, update, and deletion restricted to `ADMIN`.
+- **Reviews**: Product rating system (1–5 scale) and comments. Authenticated users can review products and update/delete their own reviews. Administrative paginated listing.
+
+### 5. File Uploads
+- Dedicated module-level `MulterModule` disk storage configuration.
+- Single (`POST /api/upload`) and multiple (`POST /api/upload/multiple`) file upload endpoints.
+
+### 6. Interactive Swagger Documentation
+- Fully documented OpenAPI 3.0 specification available at `/api/docs` and `/swagger`.
+- Interactive testing with Bearer token authentication and file upload schemas.
+
+---
+
+## 🛠 Tech Stack
+
+- **Runtime**: Node.js v20+ / v24 (ESM `nodenext` modules)
+- **Framework**: [NestJS](https://nestjs.com/) v12
+- **Database ORM**: [TypeORM](https://typeorm.io/) with [PostgreSQL](https://www.postgresql.org/)
+- **Authentication**: `@nestjs/jwt`, `passport`, `bcryptjs`
+- **Validation**: `class-validator`, `class-transformer`
+- **Mailing**: `@nestjs-modules/mailer`, `nodemailer`, `ejs`, `@css-inline/css-inline`
+- **File Uploads**: `multer`, `@nestjs/platform-express`
+- **API Documentation**: `@nestjs/swagger`, Swagger UI
+- **Testing**: [Vitest](https://vitest.dev/)
+
+---
+
+## 📁 Project Structure
+
+```text
+src/
+├── app.module.ts              # Root application module
+├── main.ts                    # Bootstrap: CORS, Global Validation Pipe, Swagger UI
+├── utils/                     # Constants, enums (UserType), and TypeScript types
+├── mail/                      # Transactional mailer module & templates
+│   ├── mail.module.ts         # MailerModule.forRootAsync with EjsAdapter & inlineCss
+│   ├── mail.service.ts        # Reusable email dispatch service
+│   └── templates/             # EJS email templates
+│       ├── login.ejs
+│       ├── reset-password.ejs
+│       └── verify-email.ejs
+├── products/                  # Product catalog management
+│   ├── product.entity.ts
+│   ├── products.controller.ts
+│   ├── products.module.ts
+│   ├── products.service.ts
+│   └── dtos/
+├── reviews/                   # Customer review system
+│   ├── review.entity.ts
+│   ├── reviews.controller.ts
+│   ├── reviews.module.ts
+│   ├── reviews.service.ts
+│   └── dtos/
+├── uploads/                   # Generic file upload module
+│   ├── upload.controller.ts
+│   └── upload.module.ts
+└── users/                     # Users, authentication, and security
+    ├── auth.provider.ts       # Auth logic (hashing, JWT, token & link generation)
+    ├── user.entity.ts         # User entity definition
+    ├── users.controller.ts    # User & auth routes
+    ├── users.module.ts        # UsersModule with Multer & Jwt registration
+    ├── users.service.ts       # User service orchestrator
+    ├── decorators/            # @CurrentUser(), @Roles()
+    ├── dtos/                  # Registration, Login, ForgotPassword, ResetPassword
+    └── guards/                # AuthGuard (JWT), AuthRolesGuard (RBAC)
 ```
 
-## Compile and run the project
+---
 
-```bash
-# development
-$ npm run start
+## ⚙️ Environment Variables
 
-# watch mode
-$ npm run start:dev
+Create or edit your `.env.development` file in the project root:
 
-# production mode
-$ npm run start:prod
+```env
+# Database configuration
+DB_USERNAME=postgres
+DB_PASSWORD=your_db_password
+DB_DATABASE=nestjs-app-db
+DB_PORT=5432
+
+# JWT configuration
+JWT_SECRET=your_super_secret_jwt_key
+JWT_EXPIRES_IN=1d
+
+# App & Frontend configuration
+DOMAIN=http://localhost:5000
+FRONTEND_URL=http://localhost:3000
+
+# SMTP / Mailtrap configuration
+SMTP_HOST=sandbox.smtp.mailtrap.io
+SMTP_PORT=2525
+SMTP_USERNAME=your_mailtrap_username
+SMTP_PASSWORD=your_mailtrap_password
 ```
 
-## Run tests
+---
 
+## 🚀 Getting Started
+
+### 1. Install Dependencies
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+npm install
 ```
 
-## Deployment
+### 2. Database Setup
+Ensure PostgreSQL is running and create the database:
+```sql
+CREATE DATABASE "nestjs-app-db";
+```
+*(In development, TypeORM automatically synchronizes your entity schemas to PostgreSQL).*
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+### 3. Run the Application
+```bash
+# Development mode with watch
+npm run start:dev
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+# Production build & start
+npm run build
+npm run start:prod
+```
+The server will start listening on **http://localhost:5000**.
+
+---
+
+## 📖 Interactive API Documentation (Swagger)
+
+Open your browser and navigate to:
+- **http://localhost:5000/api/docs**
+- or **http://localhost:5000/swagger**
+
+Swagger UI allows you to explore all endpoints, view request/response schemas, and authenticate requests using the **Authorize** button with a JWT Bearer token.
+
+---
+
+## 📡 API Reference
+
+### 🔐 Authentication & Password Recovery
+
+| Method | Endpoint | Access | Description |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/api/users/auth/register` | Public | Register new user. Sends verification email link. |
+| `POST` | `/api/users/auth/login` | Public | Log in user. Returns JWT if email is verified. |
+| `GET` | `/api/user/verify-email/:id/:token` | Public | Verify account email via link token. |
+| `POST` | `/users/forgot-password` | Public | Request a password reset email. |
+| `GET` | `/users/reset-password/:userId/:token` | Public | Validate password reset link token. |
+| `POST` | `/users/reset-password` | Public | Set new password using valid reset token. |
+
+### 👤 User Profiles & Avatars
+
+| Method | Endpoint | Access | Description |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/users/auth/profile` | Authenticated | Retrieve current user's profile. |
+| `GET` | `/api/users` | Admin | Get list of all registered users. |
+| `PUT` | `/api/users/:id` | Owner / Admin | Update username or password. |
+| `DELETE` | `/api/users/:id` | Owner / Admin | Delete user account. |
+| `POST` | `/api/users/profile-image` | Authenticated | Upload or replace user profile picture. |
+| `DELETE` | `/api/users/profile-image` | Authenticated | Delete profile image from disk. |
+| `GET` | `/api/users/profile-image/:id` | Public | Stream user profile image file. |
+
+### 📦 Products
+
+| Method | Endpoint | Access | Description |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/api/products` | Admin | Create a new product. |
+| `GET` | `/api/products` | Public | List products (supports `?title=`, `?minPrice=`, `?maxPrice=`). |
+| `GET` | `/api/products/:id` | Public | Get single product by ID. |
+| `PUT` | `/api/products/:id` | Admin | Fully update product. |
+| `PATCH` | `/api/products/:id` | Admin | Partially update product. |
+| `DELETE` | `/api/products/:id` | Admin | Delete product. |
+
+### ⭐ Reviews
+
+| Method | Endpoint | Access | Description |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/api/reviews/:productId` | Authenticated | Submit a product review (rating 1-5, comment). |
+| `GET` | `/api/reviews` | Admin | Paginated list of all reviews (`?pageNumber=&reviewsPerPage=`). |
+| `GET` | `/api/reviews/:id` | Public | Get single review by ID. |
+| `PUT` | `/api/reviews/:id` | Owner / Admin | Fully update review. |
+| `PATCH` | `/api/reviews/:id` | Owner / Admin | Partially update review. |
+| `DELETE` | `/api/reviews/:id` | Owner / Admin | Delete review. |
+
+### 📁 Uploads
+
+| Method | Endpoint | Access | Description |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/api/upload` | Public | Upload a single file (Field: `file`). |
+| `POST` | `/api/upload/multiple` | Public | Upload multiple files simultaneously (Field: `files`). |
+
+---
+
+## 🧪 Testing
+
+The project uses [Vitest](https://vitest.dev/) for unit and integration testing:
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+# Run unit tests
+npm run test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run end-to-end tests
+npm run test:e2e
+
+# Generate test coverage
+npm run test:cov
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+---
 
-## Observability
+## 📄 License
 
-In production applications, observability is essential for understanding how your system behaves, detecting issues early, and maintaining reliable performance.
-
-[NestJS Observe](https://observe.nestjs.com) automatically instruments your NestJS application, giving you deep visibility into your system with minimal setup:
-
-- **Distributed tracing:** Follow requests across services and understand how they flow through your system.
-- **Waterfall analysis:** Visualize request execution and identify slow operations, bottlenecks, and unexpected delays.
-- **Performance analysis:** Analyze application performance in real time and quickly pinpoint areas that need optimization.
-- **Metrics:** Track key application and infrastructure metrics to understand system health and performance trends.
-- **Logging:** Centralize and correlate logs with traces and other telemetry to make debugging easier.
-- **Error tracking:** Detect errors quickly and investigate their root causes with the surrounding context.
-- **SLA monitoring:** Track service-level objectives and identify when your application is approaching or exceeding defined thresholds.
-- **Alarms and alerts:** Set up alerts for critical errors, performance degradation, SLA violations, and other anomalies so your team can react quickly.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Auto-instrument your application with [NestJS Observer](https://observer.nestjs.com). Distributed tracing, metrics, and logging made easy. Error tracking and performance monitoring for your NestJS applications.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+This project is [UNLICENSED](LICENSE) — created for educational and self-study purposes.

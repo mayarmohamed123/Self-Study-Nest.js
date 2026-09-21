@@ -10,7 +10,6 @@ import {
   ParseIntPipe,
   Post,
   Put,
-  Req,
   Res,
   UseGuards,
   UseInterceptors,
@@ -19,6 +18,15 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiParam,
+  ApiConsumes,
+  ApiBody,
+} from '@nestjs/swagger';
 import { UsersService } from './users.service.js';
 import { RegisterDto } from './dtos/register.dto.js';
 import { LoginDto } from './dtos/login.dto.js';
@@ -34,23 +42,71 @@ import { AuthRolesGuard } from './guards/auth-roles.guard.js';
 import { join } from 'path';
 import type { Response } from 'express';
 
-@Controller(['api/users', 'api/user'])
+/**
+ * Controller handling user authentication, verification, password recovery,
+ * profiles, and profile image uploads.
+ */
+@ApiTags('Users')
+@Controller(['api/users'])
 @UseInterceptors(ClassSerializerInterceptor)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
+  /**
+   * Register a new user account.
+   * Sends an email verification link to the provided email address.
+   */
   @Post('auth/register')
+  @ApiOperation({ summary: 'Register a new user account' })
+  @ApiResponse({
+    status: 201,
+    description: 'User registered successfully. Verification email sent.',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Validation failed or email already registered.',
+  })
   public registerUser(@Body() body: RegisterDto) {
     return this.usersService.register(body);
   }
 
+  /**
+   * Authenticate a user with email and password.
+   * Returns a JWT access token if email is verified.
+   */
   @Post('auth/login')
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Authenticate user and generate JWT access token' })
+  @ApiResponse({
+    status: 200,
+    description:
+      'Login successful (returns accessToken) or prompt to verify email.',
+  })
+  @ApiResponse({ status: 400, description: 'Invalid password.' })
+  @ApiResponse({ status: 404, description: 'User not found.' })
   public loginUser(@Body() body: LoginDto) {
     return this.usersService.login(body);
   }
 
+  /**
+   * Verify a user's email using the token received in the verification email.
+   */
   @Get('verify-email/:id/:verificationToken')
+  @ApiOperation({ summary: 'Verify email address via token link' })
+  @ApiParam({ name: 'id', description: 'User ID', example: 1 })
+  @ApiParam({
+    name: 'verificationToken',
+    description: 'Verification token string from email',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Email verified successfully.',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid or expired verification token.',
+  })
+  @ApiResponse({ status: 404, description: 'User not found.' })
   public verifyEmail(
     @Param('id', ParseIntPipe) id: number,
     @Param('verificationToken') verificationToken: string,
@@ -58,13 +114,43 @@ export class UsersController {
     return this.usersService.verifyEmail(id, verificationToken);
   }
 
+  /**
+   * Request a password reset link to be sent to the user's email.
+   */
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Request a password reset email' })
+  @ApiResponse({
+    status: 200,
+    description: 'Password reset link sent to email if account exists.',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'User with this email does not exist.',
+  })
   public forgotPassword(@Body() body: ForgotPasswordDto) {
     return this.usersService.forgotPassword(body);
   }
 
+  /**
+   * Validate that a password reset link/token is valid and not expired.
+   */
   @Get('reset-password/:userId/:resetPasswordToken')
+  @ApiOperation({ summary: 'Validate password reset link token' })
+  @ApiParam({ name: 'userId', description: 'User ID', example: 1 })
+  @ApiParam({
+    name: 'resetPasswordToken',
+    description: 'Password reset token from email link',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Reset password link is valid.',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid or expired reset password token.',
+  })
+  @ApiResponse({ status: 404, description: 'User not found.' })
   public validateResetPasswordToken(
     @Param('userId', ParseIntPipe) userId: number,
     @Param('resetPasswordToken') resetPasswordToken: string,
@@ -75,28 +161,63 @@ export class UsersController {
     );
   }
 
+  /**
+   * Reset user password using the reset token.
+   */
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Reset password using reset token' })
+  @ApiResponse({
+    status: 200,
+    description: 'Password has been reset successfully.',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid or expired reset token, or validation error.',
+  })
+  @ApiResponse({ status: 404, description: 'User not found.' })
   public resetPassword(@Body() body: ResetPasswordDto) {
     return this.usersService.resetPassword(body);
   }
 
+  /**
+   * Get current authenticated user profile.
+   */
   @Get('auth/profile')
   @UseGuards(AuthGuard)
+  @ApiBearerAuth('bearer')
+  @ApiOperation({ summary: 'Get current authenticated user profile' })
+  @ApiResponse({ status: 200, description: 'User profile returned.' })
+  @ApiResponse({ status: 401, description: 'Unauthorized - invalid/missing token.' })
   public getProfile(@CurrentUser() payload: jwtPayload) {
     return this.usersService.getProfile(payload.id);
   }
 
+  /**
+   * Get all registered users (Admin only).
+   */
   @Get()
   @Roles(UserType.ADMIN)
   @UseGuards(AuthRolesGuard)
+  @ApiBearerAuth('bearer')
+  @ApiOperation({ summary: 'Get all users (Admin only)' })
+  @ApiResponse({ status: 200, description: 'List of all users.' })
+  @ApiResponse({ status: 403, description: 'Forbidden - requires Admin role.' })
   public getAllUsers() {
     return this.usersService.getAllUsers();
   }
 
+  /**
+   * Update a user's details (username or password).
+   */
   @Put(':id')
   @Roles(UserType.ADMIN, UserType.NORMAL_USER)
   @UseGuards(AuthRolesGuard)
+  @ApiBearerAuth('bearer')
+  @ApiOperation({ summary: 'Update user details' })
+  @ApiParam({ name: 'id', description: 'User ID', example: 1 })
+  @ApiResponse({ status: 200, description: 'User updated successfully.' })
+  @ApiResponse({ status: 404, description: 'User not found.' })
   public updateUser(
     @Param('id', ParseIntPipe) id: number,
     @Body() body: UpdateUserDto,
@@ -104,9 +225,17 @@ export class UsersController {
     return this.usersService.updateUser(id, body);
   }
 
+  /**
+   * Delete a user account.
+   */
   @Delete(':id')
   @Roles(UserType.ADMIN, UserType.NORMAL_USER)
   @UseGuards(AuthRolesGuard)
+  @ApiBearerAuth('bearer')
+  @ApiOperation({ summary: 'Delete user account' })
+  @ApiParam({ name: 'id', description: 'User ID', example: 1 })
+  @ApiResponse({ status: 200, description: 'User deleted successfully.' })
+  @ApiResponse({ status: 404, description: 'User not found.' })
   public deleteUser(@Param('id', ParseIntPipe) id: number) {
     return this.usersService.deleteUser(id);
   }
@@ -114,15 +243,31 @@ export class UsersController {
   // ─── Profile Image Endpoints ──────────────────────────────────────────────
 
   /**
-   * POST api/users/profile-image
-   * Authenticated: requires Bearer JWT token.
-   * Accepts a single file under the field name "file".
-   * Stores the file in ./images and saves the filename to the DB.
-   * Replaces any existing profile image (old file is deleted from disk).
+   * Upload or replace profile image for the authenticated user.
    */
   @Post('profile-image')
   @UseGuards(AuthGuard)
   @UseInterceptors(FileInterceptor('file'))
+  @ApiBearerAuth('bearer')
+  @ApiOperation({ summary: 'Upload or replace profile image' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+          description: 'Image file (jpeg, png, etc.)',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Profile image uploaded successfully.',
+  })
+  @ApiResponse({ status: 400, description: 'No image file provided.' })
   public async uploadProfileImage(
     @CurrentUser() payload: jwtPayload,
     @UploadedFile() file: Express.Multer.File,
@@ -143,22 +288,35 @@ export class UsersController {
   }
 
   /**
-   * DELETE api/users/profile-image
-   * Authenticated: requires Bearer JWT token.
-   * Deletes the current user's profile image from disk and sets profileImg to null.
+   * Delete the profile image of the authenticated user.
    */
   @Delete('profile-image')
   @UseGuards(AuthGuard)
+  @ApiBearerAuth('bearer')
+  @ApiOperation({ summary: 'Delete current user profile image' })
+  @ApiResponse({
+    status: 200,
+    description: 'Profile image deleted successfully.',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'User does not have a profile image.',
+  })
   public async deleteProfileImage(@CurrentUser() payload: jwtPayload) {
     return this.usersService.deleteProfileImg(payload.id);
   }
 
   /**
-   * GET api/users/profile-image/:id
-   * Public endpoint.
-   * Returns the actual image file for the given user ID.
+   * Stream the profile image file for a given user ID (Public).
    */
   @Get('profile-image/:id')
+  @ApiOperation({ summary: 'Get profile image file by user ID (Public)' })
+  @ApiParam({ name: 'id', description: 'User ID', example: 1 })
+  @ApiResponse({ status: 200, description: 'Returns the image file.' })
+  @ApiResponse({
+    status: 404,
+    description: 'User or profile image not found.',
+  })
   public async getProfileImage(
     @Param('id', ParseIntPipe) id: number,
     @Res() res: Response,

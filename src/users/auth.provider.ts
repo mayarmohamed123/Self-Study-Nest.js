@@ -17,6 +17,10 @@ import { MailService } from '../mail/mail.service.js';
 import { ConfigService } from '@nestjs/config';
 import { randomBytes } from 'crypto';
 
+/**
+ * Authentication and credential management provider.
+ * Handles hashing, JWT generation, email verification links, and password recovery.
+ */
 @Injectable()
 export class AuthProvider {
   constructor(
@@ -27,6 +31,10 @@ export class AuthProvider {
     private readonly configService: ConfigService,
   ) {}
 
+  /**
+   * Registers a new user, hashes password, generates email verification token,
+   * and sends verification email. Does NOT return an access token.
+   */
   public async register(registerDto: RegisterDto) {
     const { email, password, username } = registerDto;
 
@@ -61,6 +69,10 @@ export class AuthProvider {
     };
   }
 
+  /**
+   * Validates user credentials. If email is verified, issues JWT access token.
+   * If unverified, resends or generates verification token and prompts verification.
+   */
   public async login(loginDto: LoginDto) {
     const { email, password } = loginDto;
 
@@ -100,12 +112,10 @@ export class AuthProvider {
     return { message: 'Login successful', accessToken, user };
   }
 
-  private generateVerificationLink(userId: number, token: string): string {
-    const domain =
-      this.configService.get<string>('DOMAIN') ?? 'http://localhost:5000';
-    return `${domain}/api/user/verify-email/${userId}/${token}`;
-  }
-
+  /**
+   * Generates a password reset token, saves it to the user record,
+   * and emails the frontend reset password link.
+   */
   public async forgotPassword(
     forgotPasswordDto: ForgotPasswordDto,
   ): Promise<{ message: string }> {
@@ -133,6 +143,9 @@ export class AuthProvider {
     return { message: 'Reset password link has been sent to your email.' };
   }
 
+  /**
+   * Checks whether a reset password token matches the database record for a given user.
+   */
   public async validateResetPasswordToken(
     userId: number,
     token: string,
@@ -149,6 +162,10 @@ export class AuthProvider {
     return { message: 'Reset password link is valid.' };
   }
 
+  /**
+   * Validates the reset token, updates and hashes the new password,
+   * clears the reset token from the DB.
+   */
   public async resetPassword(
     resetPasswordDto: ResetPasswordDto,
   ): Promise<{ message: string }> {
@@ -172,17 +189,35 @@ export class AuthProvider {
     return { message: 'Password has been reset successfully.' };
   }
 
+  /**
+   * Helper: generates verification link pointing to backend verify-email endpoint.
+   */
+  private generateVerificationLink(userId: number, token: string): string {
+    const domain =
+      this.configService.get<string>('DOMAIN') ?? 'http://localhost:5000';
+    return `${domain}/api/user/verify-email/${userId}/${token}`;
+  }
+
+  /**
+   * Helper: generates reset password link pointing to frontend reset-password route.
+   */
   private generateResetPasswordLink(userId: number, token: string): string {
     const frontendUrl =
       this.configService.get<string>('FRONTEND_URL') ?? 'http://localhost:3000';
     return `${frontendUrl}/reset-password/${userId}/${token}`;
   }
 
+  /**
+   * Hashes a plain-text password with bcrypt salt.
+   */
   public async hashPassword(password: string): Promise<string> {
     const salt = await bcrypt.genSalt(10);
     return bcrypt.hash(password, salt);
   }
 
+  /**
+   * Signs a JWT access token with the given payload.
+   */
   public async generateJWT(payload: jwtPayload): Promise<string> {
     return this.jwtService.signAsync(payload);
   }
